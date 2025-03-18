@@ -7,12 +7,13 @@
 
 @layer base {
   :root {
+    /* Light mode colors */
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 222 47% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 222 47% 11%;
     --primary: 196 78% 50%;
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96.1%;
@@ -30,6 +31,7 @@
   }
  
   .dark {
+    /* Dark mode colors */
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
     --card: 222.2 84% 4.9%;
@@ -57,7 +59,7 @@
     @apply border-border antialiased;
   }
   body {
-    @apply bg-navy text-foreground font-poppins;
+    @apply bg-white dark:bg-navy text-navy dark:text-white font-poppins;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
