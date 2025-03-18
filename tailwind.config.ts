@@ -15,6 +15,7 @@ export default {
     },
     extend: {
       fontFamily: {
+        poppins: ['Poppins', 'sans-serif'],
         inter: ['Inter', 'sans-serif'],
         playfair: ['Playfair Display', 'serif'],
       },
@@ -47,6 +48,16 @@ export default {
         card: {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
+        },
+        navy: {
+          DEFAULT: "#0c1121",
+          light: "#1e2841",
+          dark: "#050a17",
+        },
+        cyan: {
+          DEFAULT: "#1EA7E1",
+          light: "#41B7E8",
+          dark: "#1A8BBB",
         },
       },
       borderRadius: {
