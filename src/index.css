@@ -58,9 +58,14 @@
   * {
     @apply border-border antialiased;
   }
+  
   body {
-    @apply bg-white dark:bg-navy text-navy dark:text-white font-poppins;
+    @apply bg-white text-navy transition-colors duration-300 dark:bg-navy dark:text-white font-poppins;
     font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply text-navy dark:text-white;
   }
 }
 
@@ -73,19 +78,19 @@
 }
 
 .h1 {
-  @apply font-poppins text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight;
+  @apply font-poppins text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-navy dark:text-white;
 }
 
 .h2 {
-  @apply font-poppins text-3xl md:text-4xl lg:text-5xl font-semibold tracking-tight;
+  @apply font-poppins text-3xl md:text-4xl lg:text-5xl font-semibold tracking-tight text-navy dark:text-white;
 }
 
 .h3 {
-  @apply font-poppins text-2xl md:text-3xl lg:text-4xl font-semibold tracking-tight;
+  @apply font-poppins text-2xl md:text-3xl lg:text-4xl font-semibold tracking-tight text-navy dark:text-white;
 }
 
 .body-text {
-  @apply font-poppins text-base md:text-lg leading-relaxed;
+  @apply font-poppins text-base md:text-lg leading-relaxed text-gray-800 dark:text-gray-300;
 }
 
 .primary-button {
@@ -93,5 +98,24 @@
 }
 
 .secondary-button {
-  @apply bg-transparent border border-white/20 text-white font-medium px-6 py-3 rounded-full hover:bg-white/10 transition-colors;
+  @apply bg-transparent border border-navy/20 text-navy dark:border-white/20 dark:text-white font-medium px-6 py-3 rounded-full hover:bg-navy/10 dark:hover:bg-white/10 transition-colors;
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+  .h1 {
+    @apply text-3xl;
+  }
+  
+  .h2 {
+    @apply text-2xl;
+  }
+  
+  .h3 {
+    @apply text-xl;
+  }
+  
+  .container {
+    @apply px-4;
+  }
 }
