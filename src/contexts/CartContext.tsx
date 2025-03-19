@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 export type CardSize = 'standard' | 'us' | 'square';
 export type TreatmentOption = 'none' | 'single' | 'both';
 export type PaperType = 'matt' | 'soft-suede' | 'mohawk' | 'keycolor' | 'cotton';
-export type ElectroplatingOption = 'none' | 'gold' | 'silver' | 'copper' | 'rose-gold';
+export type ElectroplatingOption = 'none' | 'gold' | 'silver' | 'copper' | 'rose-gold' | 'upto-1' | 'upto-2' | 'upto-3';
 
 export interface CartItem {
   id: string;
