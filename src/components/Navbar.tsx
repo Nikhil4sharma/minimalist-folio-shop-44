@@ -34,14 +34,21 @@ export function Navbar() {
   // Calculate cart items count
   const cartItemsCount = cartItems.reduce((count, item) => count + 1, 0);
 
+  // Define background color based on theme and scroll state
+  const getNavbarStyles = () => {
+    if (scrolled) {
+      return theme === 'light' 
+        ? 'bg-white/95 text-navy backdrop-blur-md py-2 border-navy/10' 
+        : 'bg-navy/95 text-white backdrop-blur-md py-2 border-white/10';
+    } else {
+      return theme === 'light'
+        ? 'bg-transparent text-navy py-4 border-navy/10'
+        : 'bg-transparent text-white py-4 border-white/10';
+    }
+  };
+
   return (
-    <nav 
-      className={`fixed w-full top-0 z-50 transition-all duration-300 ${
-        scrolled 
-          ? 'bg-navy/95 dark:bg-white/95 backdrop-blur-md py-2' 
-          : 'bg-transparent py-4'
-      } ${theme === 'light' ? 'text-navy border-navy/10' : 'text-white border-white/10'} border-b`}
-    >
+    <nav className={`fixed w-full top-0 z-50 transition-all duration-300 ${getNavbarStyles()} border-b`}>
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between">
           <Link to="/" className="font-poppins text-xl font-bold">
@@ -54,7 +61,7 @@ export function Navbar() {
               to="/" 
               className={`transition-colors ${
                 location.pathname === '/' 
-                  ? theme === 'light' ? 'text-cyan' : 'text-cyan' 
+                  ? 'text-cyan' 
                   : theme === 'light' ? 'text-navy hover:text-cyan' : 'text-white hover:text-cyan'
               }`}
             >
@@ -64,7 +71,7 @@ export function Navbar() {
               to="/products" 
               className={`transition-colors ${
                 location.pathname === '/products' 
-                  ? theme === 'light' ? 'text-cyan' : 'text-cyan' 
+                  ? 'text-cyan' 
                   : theme === 'light' ? 'text-navy hover:text-cyan' : 'text-white hover:text-cyan'
               }`}
             >
@@ -74,7 +81,7 @@ export function Navbar() {
               to="/customize" 
               className={`transition-colors ${
                 location.pathname === '/customize' 
-                  ? theme === 'light' ? 'text-cyan' : 'text-cyan' 
+                  ? 'text-cyan' 
                   : theme === 'light' ? 'text-navy hover:text-cyan' : 'text-white hover:text-cyan'
               }`}
             >
@@ -84,7 +91,7 @@ export function Navbar() {
               to="/how-it-works" 
               className={`transition-colors ${
                 location.pathname === '/how-it-works' 
-                  ? theme === 'light' ? 'text-cyan' : 'text-cyan' 
+                  ? 'text-cyan' 
                   : theme === 'light' ? 'text-navy hover:text-cyan' : 'text-white hover:text-cyan'
               }`}
             >
@@ -94,7 +101,7 @@ export function Navbar() {
               to="/contact" 
               className={`transition-colors ${
                 location.pathname === '/contact' 
-                  ? theme === 'light' ? 'text-cyan' : 'text-cyan' 
+                  ? 'text-cyan' 
                   : theme === 'light' ? 'text-navy hover:text-cyan' : 'text-white hover:text-cyan'
               }`}
             >
@@ -179,8 +186,8 @@ export function Navbar() {
         {mobileMenuOpen && (
           <div className={`md:hidden mt-4 p-4 rounded-lg border animate-fade-in ${
             theme === 'light' 
-              ? 'bg-white border-navy/10' 
-              : 'bg-navy-light border-white/10'
+              ? 'bg-white border-navy/10 text-navy' 
+              : 'bg-navy-light border-white/10 text-white'
           }`}>
             <div className="flex flex-col space-y-4">
               <Link 
