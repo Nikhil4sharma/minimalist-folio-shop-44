@@ -30,14 +30,30 @@ export const createUserProfile = async (userId: string, userData: any) => {
 
 export const getUserProfile = async (userId: string) => {
   try {
+    // Check if online first
+    if (!navigator.onLine) {
+      return { 
+        error: true, 
+        message: 'You are offline. Please check your internet connection and try again.',
+        code: 'OFFLINE'
+      };
+    }
+
     // Set a timeout to prevent infinite loading
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Profile request timed out')), 10000);
+    const timeoutPromise = new Promise<{ error: true, message: string, code: string }>((_, reject) => {
+      setTimeout(() => {
+        reject({ 
+          error: true, 
+          message: 'Profile request timed out. Please try again later.', 
+          code: 'TIMEOUT' 
+        });
+      }, 10000);
     });
 
     const fetchProfile = async () => {
       const q = query(collection(db, 'userProfiles'), where('userId', '==', userId));
       const querySnapshot = await getDocs(q);
+      
       if (!querySnapshot.empty) {
         // Convert Firestore document to UserProfile type with all properties
         const data = querySnapshot.docs[0].data();
@@ -52,16 +68,57 @@ export const getUserProfile = async (userId: string) => {
           updatedAt: data.updatedAt
         };
       }
+      
+      // No profile found
       return null;
     };
 
     // Race the fetch against the timeout
-    const result = await Promise.race([fetchProfile(), timeoutPromise]);
-    return result;
+    try {
+      const result = await Promise.race([fetchProfile(), timeoutPromise]);
+      return result;
+    } catch (error) {
+      // This catch will handle the rejection from timeoutPromise
+      if (error && typeof error === 'object' && 'code' in error) {
+        return error;
+      }
+      
+      // Handle other errors
+      return { 
+        error: true, 
+        message: error instanceof Error ? error.message : 'Error fetching profile data', 
+        code: 'UNKNOWN'
+      };
+    }
   } catch (error) {
     console.error('Error getting user profile:', error);
-    // Return an error object instead of null, to differentiate between "no profile" and "error"
-    return { error: true, message: error instanceof Error ? error.message : 'Unknown error fetching profile' };
+    
+    // Check if it's a Firebase error with a code
+    if (error && typeof error === 'object' && 'code' in error) {
+      const firebaseError = error as { code: string, message?: string };
+      
+      // Handle specific Firebase error codes
+      if (firebaseError.code === 'unavailable') {
+        return { 
+          error: true, 
+          message: 'Firebase is currently unavailable. You may be offline.', 
+          code: 'FIREBASE_UNAVAILABLE' 
+        };
+      }
+      
+      return { 
+        error: true, 
+        message: firebaseError.message || 'Firebase error occurred', 
+        code: firebaseError.code 
+      };
+    }
+    
+    // Generic error
+    return { 
+      error: true, 
+      message: error instanceof Error ? error.message : 'Unknown error fetching profile', 
+      code: 'ERROR' 
+    };
   }
 };
 

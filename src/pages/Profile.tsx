@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
@@ -11,10 +11,19 @@ import { ProfileOrdersCard } from '@/components/profile/ProfileOrdersCard';
 import { ProfileError } from '@/components/profile/ProfileError';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
+import { useToast } from '@/hooks/use-toast';
+
+// Define an interface for error objects
+interface ErrorResponse {
+  error: boolean;
+  message?: string;
+  code?: string;
+}
 
 const Profile = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [userProfile, setUserProfile] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -22,10 +31,12 @@ const Profile = () => {
   const [networkStatus, setNetworkStatus] = useState<'online' | 'offline'>(
     navigator.onLine ? 'online' : 'offline'
   );
+  const [isRetrying, setIsRetrying] = useState(false);
 
-  const fetchUserProfile = async () => {
+  const fetchUserProfile = useCallback(async () => {
     setIsLoading(true);
     setError(null);
+    setIsRetrying(false);
     
     if (!currentUser) {
       navigate('/login');
@@ -45,8 +56,14 @@ const Profile = () => {
       
       // Check if there was an error
       if (profileData && typeof profileData === 'object' && 'error' in profileData) {
-        const errorData = profileData as { error: boolean, message?: string };
+        const errorData = profileData as ErrorResponse;
         setError(errorData.message || 'Error loading profile');
+        
+        // Show toast for network-related errors
+        if (errorData.code === 'OFFLINE' || errorData.code === 'FIREBASE_UNAVAILABLE') {
+          setNetworkStatus('offline');
+        }
+        
         setIsLoading(false);
         return;
       }
@@ -63,12 +80,26 @@ const Profile = () => {
       setError('Unable to load profile data. Please try again later.');
       setIsLoading(false);
     }
-  };
+  }, [currentUser, navigate]);
 
   // Handle online/offline status
   useEffect(() => {
-    const handleOnline = () => setNetworkStatus('online');
-    const handleOffline = () => setNetworkStatus('offline');
+    const handleOnline = () => {
+      setNetworkStatus('online');
+      toast({
+        title: "You're back online",
+        description: "Reconnected to the network",
+      });
+    };
+    
+    const handleOffline = () => {
+      setNetworkStatus('offline');
+      toast({
+        title: "You're offline",
+        description: "Please check your internet connection",
+        variant: "destructive",
+      });
+    };
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -77,18 +108,24 @@ const Profile = () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, []);
+  }, [toast]);
 
   // Attempt to reload when coming back online
   useEffect(() => {
-    if (networkStatus === 'online' && error && error.includes('offline')) {
+    if (networkStatus === 'online' && error && 
+        (error.includes('offline') || error.includes('unavailable'))) {
       fetchUserProfile();
     }
-  }, [networkStatus]);
+  }, [networkStatus, error, fetchUserProfile]);
 
   useEffect(() => {
     fetchUserProfile();
-  }, [currentUser]);
+  }, [fetchUserProfile]);
+
+  const handleRetry = () => {
+    setIsRetrying(true);
+    fetchUserProfile();
+  };
 
   const handleAddAddress = () => {
     // This would open an address form
@@ -105,7 +142,7 @@ const Profile = () => {
       <div className="min-h-screen bg-white dark:bg-navy">
         <Navbar />
         <div className="container mx-auto px-4 py-28">
-          <ProfileError message={error} onRetry={fetchUserProfile} />
+          <ProfileError message={error} onRetry={handleRetry} />
         </div>
         <Footer />
       </div>
