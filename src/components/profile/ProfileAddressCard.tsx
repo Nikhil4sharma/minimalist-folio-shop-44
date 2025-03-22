@@ -4,7 +4,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useTheme } from '@/components/ThemeProvider';
-import { PlusCircle, MapPin } from 'lucide-react';
+import { PlusCircle, MapPin, Trash2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface Address {
   id?: string;
@@ -20,12 +31,14 @@ interface ProfileAddressCardProps {
   addresses: Address[];
   isLoading: boolean;
   onAddAddress: () => void;
+  onRemoveAddress?: (addressId: string) => void;
 }
 
 export const ProfileAddressCard: React.FC<ProfileAddressCardProps> = ({ 
   addresses, 
   isLoading,
-  onAddAddress 
+  onAddAddress,
+  onRemoveAddress
 }) => {
   const { theme } = useTheme();
   
@@ -92,6 +105,37 @@ export const ProfileAddressCard: React.FC<ProfileAddressCardProps> = ({
                       )}
                     </div>
                   </div>
+                  
+                  {onRemoveAddress && address.id && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/20"
+                        >
+                          <Trash2 size={18} />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Remove Address</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to remove this address? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => onRemoveAddress(address.id as string)}
+                            className="bg-red-500 hover:bg-red-600"
+                          >
+                            Remove
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
                 </div>
               </div>
             ))}

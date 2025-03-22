@@ -9,28 +9,90 @@ import {
   getDocs, 
   query, 
   where, 
-  serverTimestamp 
+  serverTimestamp,
+  setDoc
 } from 'firebase/firestore';
 
-// User-related functions
-export const createUserProfile = async (userId: string, userData: any) => {
+export interface UserProfile {
+  id?: string;
+  userId: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  addresses: Address[];
+  createdAt: any;
+  updatedAt: any;
+}
+
+export interface Address {
+  id?: string;
+  line1: string;
+  line2?: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  isDefault?: boolean;
+}
+
+export interface Order {
+  id?: string;
+  userId: string;
+  items: any[];
+  total: number;
+  status: string;
+  shippingAddress: Address;
+  paymentMethod: string;
+  date?: any;
+  createdAt?: any;
+  updatedAt?: any;
+}
+
+export interface ErrorResponse {
+  error: boolean;
+  message: string;
+  code: string;
+}
+
+export const createUserProfile = async (userId: string, userData: any): Promise<boolean | ErrorResponse> => {
   try {
+    if (!navigator.onLine) {
+      return { 
+        error: true, 
+        message: 'You are offline. Please check your internet connection and try again.',
+        code: 'OFFLINE'
+      };
+    }
+    
+    const existingProfile = await getUserProfile(userId);
+    
+    if (existingProfile && !('error' in existingProfile)) {
+      if (existingProfile.id) {
+        await updateUserProfile(existingProfile.id, userData);
+        return true;
+      }
+    }
+    
     await addDoc(collection(db, 'userProfiles'), {
       userId,
       ...userData,
+      addresses: userData.addresses || [],
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
+    
     return true;
   } catch (error) {
     console.error('Error creating user profile:', error);
-    return false;
+    return { 
+      error: true, 
+      message: error instanceof Error ? error.message : 'Error creating profile', 
+      code: 'CREATE_ERROR' 
+    };
   }
 };
 
-export const getUserProfile = async (userId: string) => {
+export const getUserProfile = async (userId: string): Promise<UserProfile | ErrorResponse> => {
   try {
-    // Check if online first
     if (!navigator.onLine) {
       return { 
         error: true, 
@@ -39,8 +101,7 @@ export const getUserProfile = async (userId: string) => {
       };
     }
 
-    // Set a timeout to prevent infinite loading
-    const timeoutPromise = new Promise<{ error: true, message: string, code: string }>((_, reject) => {
+    const timeoutPromise = new Promise<ErrorResponse>((_, reject) => {
       setTimeout(() => {
         reject({ 
           error: true, 
@@ -55,7 +116,6 @@ export const getUserProfile = async (userId: string) => {
       const querySnapshot = await getDocs(q);
       
       if (!querySnapshot.empty) {
-        // Convert Firestore document to UserProfile type with all properties
         const data = querySnapshot.docs[0].data();
         return { 
           id: querySnapshot.docs[0].id, 
@@ -66,24 +126,33 @@ export const getUserProfile = async (userId: string) => {
           addresses: Array.isArray(data.addresses) ? data.addresses : [],
           createdAt: data.createdAt,
           updatedAt: data.updatedAt
-        };
+        } as UserProfile;
       }
       
-      // No profile found
-      return null;
+      const newProfile = {
+        userId,
+        name: '',
+        email: '',
+        addresses: [],
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+      
+      const docRef = await addDoc(collection(db, 'userProfiles'), newProfile);
+      return { 
+        id: docRef.id,
+        ...newProfile
+      } as UserProfile;
     };
 
-    // Race the fetch against the timeout
     try {
       const result = await Promise.race([fetchProfile(), timeoutPromise]);
       return result;
     } catch (error) {
-      // This catch will handle the rejection from timeoutPromise
       if (error && typeof error === 'object' && 'code' in error) {
-        return error;
+        return error as ErrorResponse;
       }
       
-      // Handle other errors
       return { 
         error: true, 
         message: error instanceof Error ? error.message : 'Error fetching profile data', 
@@ -93,11 +162,9 @@ export const getUserProfile = async (userId: string) => {
   } catch (error) {
     console.error('Error getting user profile:', error);
     
-    // Check if it's a Firebase error with a code
     if (error && typeof error === 'object' && 'code' in error) {
       const firebaseError = error as { code: string, message?: string };
       
-      // Handle specific Firebase error codes
       if (firebaseError.code === 'unavailable') {
         return { 
           error: true, 
@@ -110,10 +177,9 @@ export const getUserProfile = async (userId: string) => {
         error: true, 
         message: firebaseError.message || 'Firebase error occurred', 
         code: firebaseError.code 
-      };
+      } as ErrorResponse;
     }
     
-    // Generic error
     return { 
       error: true, 
       message: error instanceof Error ? error.message : 'Unknown error fetching profile', 
@@ -122,8 +188,16 @@ export const getUserProfile = async (userId: string) => {
   }
 };
 
-export const updateUserProfile = async (profileId: string, data: any) => {
+export const updateUserProfile = async (profileId: string, data: any): Promise<boolean | ErrorResponse> => {
   try {
+    if (!navigator.onLine) {
+      return { 
+        error: true, 
+        message: 'You are offline. Please check your internet connection and try again.',
+        code: 'OFFLINE'
+      };
+    }
+    
     const profileRef = doc(db, 'userProfiles', profileId);
     await updateDoc(profileRef, {
       ...data,
@@ -132,43 +206,211 @@ export const updateUserProfile = async (profileId: string, data: any) => {
     return true;
   } catch (error) {
     console.error('Error updating user profile:', error);
-    return false;
+    return { 
+      error: true, 
+      message: error instanceof Error ? error.message : 'Error updating profile', 
+      code: 'UPDATE_ERROR' 
+    };
   }
 };
 
-// Order-related functions
-export const createOrder = async (userId: string, orderData: any) => {
+export const addAddressToProfile = async (profileId: string, address: Address): Promise<boolean | ErrorResponse> => {
   try {
-    const result = await addDoc(collection(db, 'orders'), {
+    if (!navigator.onLine) {
+      return { 
+        error: true, 
+        message: 'You are offline. Please check your internet connection and try again.',
+        code: 'OFFLINE'
+      };
+    }
+    
+    const profileRef = doc(db, 'userProfiles', profileId);
+    const profileSnap = await getDoc(profileRef);
+    
+    if (!profileSnap.exists()) {
+      return { 
+        error: true, 
+        message: 'Profile not found', 
+        code: 'NOT_FOUND' 
+      };
+    }
+    
+    const profileData = profileSnap.data();
+    const addresses = Array.isArray(profileData.addresses) ? profileData.addresses : [];
+    
+    const newAddress = {
+      ...address,
+      id: address.id || `addr_${Date.now()}`
+    };
+    
+    if (addresses.length === 0 || newAddress.isDefault) {
+      newAddress.isDefault = true;
+      addresses.forEach(addr => {
+        if (addr.id !== newAddress.id) {
+          addr.isDefault = false;
+        }
+      });
+    }
+    
+    addresses.push(newAddress);
+    
+    await updateDoc(profileRef, {
+      addresses: addresses,
+      updatedAt: serverTimestamp(),
+    });
+    
+    return true;
+  } catch (error) {
+    console.error('Error adding address:', error);
+    return { 
+      error: true, 
+      message: error instanceof Error ? error.message : 'Error adding address', 
+      code: 'ADDRESS_ERROR' 
+    };
+  }
+};
+
+export const removeAddress = async (profileId: string, addressId: string): Promise<boolean | ErrorResponse> => {
+  try {
+    if (!navigator.onLine) {
+      return { 
+        error: true, 
+        message: 'You are offline. Please check your internet connection and try again.',
+        code: 'OFFLINE'
+      };
+    }
+    
+    const profileRef = doc(db, 'userProfiles', profileId);
+    const profileSnap = await getDoc(profileRef);
+    
+    if (!profileSnap.exists()) {
+      return { 
+        error: true, 
+        message: 'Profile not found', 
+        code: 'NOT_FOUND' 
+      };
+    }
+    
+    const profileData = profileSnap.data();
+    let addresses = Array.isArray(profileData.addresses) ? profileData.addresses : [];
+    
+    addresses = addresses.filter((addr: Address) => addr.id !== addressId);
+    
+    if (addresses.length > 0) {
+      const hasDefault = addresses.some((addr: Address) => addr.isDefault);
+      if (!hasDefault) {
+        addresses[0].isDefault = true;
+      }
+    }
+    
+    await updateDoc(profileRef, {
+      addresses: addresses,
+      updatedAt: serverTimestamp(),
+    });
+    
+    return true;
+  } catch (error) {
+    console.error('Error removing address:', error);
+    return { 
+      error: true, 
+      message: error instanceof Error ? error.message : 'Error removing address', 
+      code: 'ADDRESS_ERROR' 
+    };
+  }
+};
+
+export const createOrder = async (userId: string, orderData: any): Promise<{ success: boolean, orderId?: string, error?: any }> => {
+  try {
+    if (!navigator.onLine) {
+      return { 
+        success: false, 
+        error: {
+          message: 'You are offline. Please check your internet connection and try again.',
+          code: 'OFFLINE'
+        }
+      };
+    }
+    
+    const orderToSave = {
       userId,
       ...orderData,
       status: 'pending',
+      date: serverTimestamp(),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    });
+    };
+    
+    const result = await addDoc(collection(db, 'orders'), orderToSave);
     return { success: true, orderId: result.id };
   } catch (error) {
     console.error('Error creating order:', error);
-    return { success: false, error };
+    return { 
+      success: false, 
+      error: { 
+        message: error instanceof Error ? error.message : 'Error creating order',
+        code: 'ORDER_ERROR'
+      } 
+    };
   }
 };
 
-export const getOrders = async (userId: string) => {
+export const getOrders = async (userId: string): Promise<Order[] | ErrorResponse> => {
   try {
-    const q = query(collection(db, 'orders'), where('userId', '==', userId));
+    if (!navigator.onLine) {
+      return { 
+        error: true, 
+        message: 'You are offline. Please check your internet connection and try again.',
+        code: 'OFFLINE'
+      };
+    }
+
+    const q = query(
+      collection(db, 'orders'), 
+      where('userId', '==', userId)
+    );
+    
     const querySnapshot = await getDocs(q);
     const orders = querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
-    }));
-    return orders;
+    })) as Order[];
+    
+    return orders.sort((a, b) => {
+      if (!a.date || !b.date) return 0;
+      const dateA = a.date?.seconds ? a.date.seconds : a.date;
+      const dateB = b.date?.seconds ? b.date.seconds : b.date;
+      return dateB - dateA;
+    });
   } catch (error) {
     console.error('Error getting orders:', error);
-    return [];
+    
+    if (error && typeof error === 'object' && 'code' in error) {
+      const firebaseError = error as { code: string, message?: string };
+      
+      if (firebaseError.code === 'unavailable') {
+        return { 
+          error: true, 
+          message: 'Firebase is currently unavailable. You may be offline.', 
+          code: 'FIREBASE_UNAVAILABLE' 
+        };
+      }
+      
+      return { 
+        error: true, 
+        message: firebaseError.message || 'Firebase error occurred', 
+        code: firebaseError.code 
+      } as ErrorResponse;
+    }
+    
+    return { 
+      error: true, 
+      message: error instanceof Error ? error.message : 'Error retrieving orders', 
+      code: 'ERROR' 
+    };
   }
 };
 
-export const getOrderDetails = async (orderId: string) => {
+export const getOrderDetails = async (orderId: string): Promise<Order | null> => {
   try {
     const orderDoc = await getDoc(doc(db, 'orders', orderId));
     if (orderDoc.exists()) {
@@ -181,7 +423,7 @@ export const getOrderDetails = async (orderId: string) => {
   }
 };
 
-export const updateOrderStatus = async (orderId: string, status: string) => {
+export const updateOrderStatus = async (orderId: string, status: string): Promise<boolean> => {
   try {
     const orderRef = doc(db, 'orders', orderId);
     await updateDoc(orderRef, {
@@ -195,8 +437,7 @@ export const updateOrderStatus = async (orderId: string, status: string) => {
   }
 };
 
-// Saved designs functions
-export const saveDesign = async (userId: string, designData: any) => {
+export const saveDesign = async (userId: string, designData: any): Promise<{ success: boolean, designId?: string, error?: any }> => {
   try {
     const result = await addDoc(collection(db, 'savedDesigns'), {
       userId,
@@ -211,22 +452,21 @@ export const saveDesign = async (userId: string, designData: any) => {
   }
 };
 
-export const getSavedDesigns = async (userId: string) => {
+export const getSavedDesigns = async (userId: string): Promise<any[]> => {
   try {
     const q = query(collection(db, 'savedDesigns'), where('userId', '==', userId));
     const querySnapshot = await getDocs(q);
-    const designs = querySnapshot.docs.map(doc => ({
+    return querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     }));
-    return designs;
   } catch (error) {
     console.error('Error getting saved designs:', error);
     return [];
   }
 };
 
-export const updateSavedDesign = async (designId: string, data: any) => {
+export const updateSavedDesign = async (designId: string, data: any): Promise<boolean> => {
   try {
     const designRef = doc(db, 'savedDesigns', designId);
     await updateDoc(designRef, {
@@ -240,7 +480,7 @@ export const updateSavedDesign = async (designId: string, data: any) => {
   }
 };
 
-export const deleteSavedDesign = async (designId: string) => {
+export const deleteSavedDesign = async (designId: string): Promise<boolean> => {
   try {
     await deleteDoc(doc(db, 'savedDesigns', designId));
     return true;
