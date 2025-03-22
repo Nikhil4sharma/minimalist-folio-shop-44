@@ -3,6 +3,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { ShoppingCart, IndianRupee } from 'lucide-react';
 import { useTheme } from '@/components/ThemeProvider';
+import { useNavigate } from 'react-router-dom';
 
 interface AddToCartSectionProps {
   perCardPrice: number;
@@ -16,6 +17,12 @@ export const AddToCartSection: React.FC<AddToCartSectionProps> = ({
   handleAddToCart
 }) => {
   const { theme } = useTheme();
+  const navigate = useNavigate();
+  
+  const handleBuyNow = () => {
+    handleAddToCart();
+    navigate('/cart');
+  };
   
   return (
     <div className={`border-t pt-4 ${
@@ -45,6 +52,13 @@ export const AddToCartSection: React.FC<AddToCartSectionProps> = ({
         >
           <ShoppingCart size={18} />
           Add to Cart
+        </Button>
+        
+        <Button 
+          className="rounded-full bg-navy dark:bg-cyan hover:bg-navy-light dark:hover:bg-cyan-light flex-1 gap-2 py-6"
+          onClick={handleBuyNow}
+        >
+          Buy Now
         </Button>
       </div>
     </div>

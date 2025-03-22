@@ -7,10 +7,12 @@ import { useCart } from '@/contexts/CartContext';
 import { products, getCategoryName } from '@/utils/productUtils';
 import { ProductDetailContent } from '@/components/product-detail/ProductDetailContent';
 import { useProductOptions } from '@/hooks/useProductOptions';
+import { useToast } from '@/hooks/use-toast';
 
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { addToCart } = useCart();
+  const { toast } = useToast();
   
   // Find the product by ID or use the first product as fallback
   const product = products.find(p => p.id === id) || products[0];
@@ -29,7 +31,7 @@ const ProductDetail = () => {
         product.details.paperType
       );
     }
-  }, [product]);
+  }, [product, setProductDefaults]);
   
   const handleAddToCart = () => {
     addToCart({
@@ -48,6 +50,11 @@ const ProductDetail = () => {
       paperType: options.selectedPaperType,
       hasDesign: options.hasDesign,
       designType: options.hasDesign ? options.designType : undefined
+    });
+
+    toast({
+      title: "Product added to cart",
+      description: `${product.name} has been added to your cart.`,
     });
   };
 

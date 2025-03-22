@@ -23,21 +23,4 @@ export const db = getFirestore(app);
 export const analytics = getAnalytics(app);
 export const storage = getStorage(app);
 
-// Helper function to create admin users (for development purposes)
-// In production, this should be done through a secure backend
-export const setupAdminUser = async (uid: string) => {
-  try {
-    const { setDoc, doc } = await import('firebase/firestore');
-    await setDoc(doc(db, 'users', uid), {
-      role: 'admin',
-      createdAt: new Date(),
-    });
-    console.log('Admin user created successfully');
-    return true;
-  } catch (error) {
-    console.error('Error creating admin user:', error);
-    return false;
-  }
-};
-
 export default app;
