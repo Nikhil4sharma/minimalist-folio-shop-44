@@ -1,4 +1,3 @@
-
 import { db } from '@/config/firebase';
 import { 
   collection, 
@@ -31,27 +30,38 @@ export const createUserProfile = async (userId: string, userData: any) => {
 
 export const getUserProfile = async (userId: string) => {
   try {
-    const q = query(collection(db, 'userProfiles'), where('userId', '==', userId));
-    const querySnapshot = await getDocs(q);
-    if (!querySnapshot.empty) {
-      // Convert Firestore document to UserProfile type with all properties
-      const data = querySnapshot.docs[0].data();
-      return { 
-        id: querySnapshot.docs[0].id, 
-        userId: data.userId,
-        name: data.name || '',
-        email: data.email || '',
-        phone: data.phone || '',
-        addresses: Array.isArray(data.addresses) ? data.addresses : [],
-        createdAt: data.createdAt,
-        updatedAt: data.updatedAt
-      };
-    }
-    return null;
+    // Set a timeout to prevent infinite loading
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Profile request timed out')), 10000);
+    });
+
+    const fetchProfile = async () => {
+      const q = query(collection(db, 'userProfiles'), where('userId', '==', userId));
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+        // Convert Firestore document to UserProfile type with all properties
+        const data = querySnapshot.docs[0].data();
+        return { 
+          id: querySnapshot.docs[0].id, 
+          userId: data.userId,
+          name: data.name || '',
+          email: data.email || '',
+          phone: data.phone || '',
+          addresses: Array.isArray(data.addresses) ? data.addresses : [],
+          createdAt: data.createdAt,
+          updatedAt: data.updatedAt
+        };
+      }
+      return null;
+    };
+
+    // Race the fetch against the timeout
+    const result = await Promise.race([fetchProfile(), timeoutPromise]);
+    return result;
   } catch (error) {
     console.error('Error getting user profile:', error);
-    // Return null instead of throwing, to avoid infinite loading
-    return null;
+    // Return an error object instead of null, to differentiate between "no profile" and "error"
+    return { error: true, message: error instanceof Error ? error.message : 'Unknown error fetching profile' };
   }
 };
 
