@@ -100,6 +100,7 @@ export const ProductDetailContent: React.FC<ProductDetailContentProps> = ({
               totalPrice: pricing.totalPrice,
               sizeMultiplier: pricing.sizeMultiplier
             }}
+            productName={productName}
           />
         </div>
         

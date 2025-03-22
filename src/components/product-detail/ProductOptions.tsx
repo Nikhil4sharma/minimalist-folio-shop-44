@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { SizeSelector } from './SizeSelector';
 import { DesignUploadSection } from './DesignUploadSection';
 import { PaperWeightSelector } from './PaperWeightSelector';
@@ -8,6 +8,9 @@ import { TreatmentOptionSelector } from './TreatmentOption';
 import { ElectroplatingOptionSelector } from './ElectroplatingOptionSelector';
 import { QuantitySelector } from './QuantitySelector';
 import { PricingTable } from './PricingTable';
+import { RequestQuoteDialog } from './RequestQuoteDialog';
+import { Button } from '@/components/ui/button';
+import { MessageSquare } from 'lucide-react';
 import { ElectroplatingOption, TreatmentOption, PaperType } from '@/contexts/CartContext';
 
 interface ProductOptionsProps {
@@ -51,13 +54,17 @@ interface ProductOptionsProps {
     totalPrice: number;
     sizeMultiplier: number;
   };
+  productName: string;
 }
 
 export const ProductOptions: React.FC<ProductOptionsProps> = ({
   options,
   setters,
-  pricing
+  pricing,
+  productName
 }) => {
+  const [quoteDialogOpen, setQuoteDialogOpen] = useState(false);
+  
   return (
     <div className="pt-4 space-y-6">
       {/* Card Size */}
@@ -143,6 +150,18 @@ export const ProductOptions: React.FC<ProductOptionsProps> = ({
         setSelectedQuantity={setters.setSelectedQuantity}
       />
       
+      {/* Request Quote Button */}
+      <div className="pt-2">
+        <Button 
+          variant="outline" 
+          className="w-full flex items-center justify-center gap-2 border-dashed border-cyan text-cyan hover:bg-cyan/5"
+          onClick={() => setQuoteDialogOpen(true)}
+        >
+          <MessageSquare className="h-5 w-5" />
+          Request Custom Quote
+        </Button>
+      </div>
+      
       {/* Pricing Table */}
       <PricingTable 
         selectedQuantity={options.selectedQuantity}
@@ -166,6 +185,27 @@ export const ProductOptions: React.FC<ProductOptionsProps> = ({
         designPrice={pricing.designPrice}
         totalPrice={pricing.totalPrice}
         sizeMultiplier={pricing.sizeMultiplier}
+      />
+      
+      {/* Request Quote Dialog */}
+      <RequestQuoteDialog 
+        open={quoteDialogOpen}
+        onOpenChange={setQuoteDialogOpen}
+        productDetails={{
+          productName,
+          selectedQuantity: options.selectedQuantity,
+          selectedSize: options.selectedSize,
+          selectedGSM: options.selectedGSM,
+          selectedPaperType: options.selectedPaperType,
+          selectedFoilpress: options.selectedFoilpress,
+          selectedEmbossing: options.selectedEmbossing,
+          selectedEdgepaint: options.selectedEdgepaint,
+          selectedElectroplatingFront: options.selectedElectroplatingFront,
+          selectedElectroplatingBack: options.selectedElectroplatingBack,
+          hasDesign: options.hasDesign,
+          designType: options.designType,
+          totalPrice: pricing.totalPrice
+        }}
       />
     </div>
   );
