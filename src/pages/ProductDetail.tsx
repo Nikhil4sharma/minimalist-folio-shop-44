@@ -28,8 +28,12 @@ const ProductDetail = () => {
       setSelectedGSM(gsm);
     }
     
-    if (product && product.details && product.details.quantity) {
-      setSelectedQuantity(product.details.quantity.toString());
+    // Set default quantity based on the smallest quantity in pricing
+    if (product && product.pricing) {
+      const quantities = Object.keys(product.pricing);
+      if (quantities.length > 0) {
+        setSelectedQuantity(quantities[0]);
+      }
     }
   }, [product]);
   

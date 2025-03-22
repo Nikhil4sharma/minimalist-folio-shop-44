@@ -80,7 +80,7 @@ const Products = () => {
                     <IndianRupee className="h-4 w-4 mr-1" />
                     {product.price.toLocaleString('en-IN')}
                     <span className="text-sm font-normal text-gray-500 ml-2">
-                      per {product.details?.quantity || 100} cards
+                      per {Object.keys(product.pricing)[0] || 100} cards
                     </span>
                   </div>
                   <p className="text-gray-600 dark:text-gray-400 line-clamp-2 text-sm">{product.description}</p>
