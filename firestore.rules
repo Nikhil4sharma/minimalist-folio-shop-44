@@ -2,32 +2,57 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Check if user is the owner of the resource
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Check if user is an admin
+    function isAdmin() {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
     // User profiles can be read by the owner, created by anyone, and updated by the owner
     match /userProfiles/{profileId} {
-      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null && request.auth.uid == resource.data.userId;
-      allow delete: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow create: if isAuthenticated();
+      allow update: if isOwner(resource.data.userId) || isAdmin();
+      allow delete: if isOwner(resource.data.userId) || isAdmin();
     }
     
-    // Orders can be read, created, and updated by the owner
+    // Orders can be read, created, and updated by the owner or admins
     match /orders/{orderId} {
-      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow create: if isAuthenticated();
+      allow update: if isOwner(resource.data.userId) || isAdmin();
     }
     
-    // Saved designs can be read, created, updated, and deleted by the owner
+    // Saved designs can be read, created, updated, and deleted by the owner or admins
     match /savedDesigns/{designId} {
-      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if isOwner(resource.data.userId) || isAdmin();
     }
     
-    // Admin users can access everything (replace with your admin validation logic)
+    // Users collection - admin role management
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      // Only admins can create/update other admin users
+      allow create, update: if isAdmin();
+      // Users can read their own data
+      allow read: if isOwner(userId);
+    }
+    
+    // Admin users can access everything
     match /{document=**} {
-      allow read, write: if request.auth != null && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-                          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow read, write: if isAdmin();
     }
   }
 }
