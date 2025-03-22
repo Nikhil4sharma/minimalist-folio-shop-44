@@ -107,11 +107,13 @@ const Profile = () => {
     const fetchUserData = async () => {
       setLoading(true);
       try {
-        const profile = await getUserProfile(currentUser.uid);
+        const profileData = await getUserProfile(currentUser.uid);
         
-        if (profile) {
-          setUserProfile(profile as UserProfile);
-          setProfileId(profile.id);
+        if (profileData) {
+          // Properly cast the profileData to UserProfile type
+          const profile = profileData as UserProfile;
+          setUserProfile(profile);
+          setProfileId(profile.id || null);
           
           profileForm.reset({
             name: profile.name || currentUser.displayName || '',
@@ -133,11 +135,12 @@ const Profile = () => {
           };
           
           await createUserProfile(currentUser.uid, newProfile);
-          const createdProfile = await getUserProfile(currentUser.uid);
+          const createdProfileData = await getUserProfile(currentUser.uid);
           
-          if (createdProfile) {
-            setUserProfile(createdProfile as UserProfile);
-            setProfileId(createdProfile.id);
+          if (createdProfileData) {
+            const createdProfile = createdProfileData as UserProfile;
+            setUserProfile(createdProfile);
+            setProfileId(createdProfile.id || null);
             
             profileForm.reset({
               name,
