@@ -422,9 +422,18 @@ export const getOrderDetails = async (orderId: string): Promise<Order | ErrorRes
     
     const orderDoc = await getDoc(doc(db, 'orders', orderId));
     if (orderDoc.exists()) {
+      const data = orderDoc.data();
       return { 
         id: orderDoc.id, 
-        ...orderDoc.data()
+        userId: data.userId || '',
+        items: data.items || [],
+        total: data.total || 0,
+        status: data.status || 'unknown',
+        shippingAddress: data.shippingAddress || {},
+        paymentMethod: data.paymentMethod || '',
+        date: data.date,
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt
       } as Order;
     }
     return { 

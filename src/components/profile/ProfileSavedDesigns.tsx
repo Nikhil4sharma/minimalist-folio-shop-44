@@ -23,7 +23,7 @@ export const ProfileSavedDesigns: React.FC<ProfileSavedDesignsProps> = ({ userId
       try {
         const savedDesigns = await getSavedDesigns(userId);
         
-        if ('error' in savedDesigns) {
+        if (typeof savedDesigns === 'object' && 'error' in savedDesigns && savedDesigns.error) {
           const errorData = savedDesigns as ErrorResponse;
           setError(errorData.message);
           setDesigns([]);
