@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useTheme } from '@/components/ThemeProvider';
 import { Palette, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { getSavedDesigns } from '@/utils/firebaseUtils';
+import { getSavedDesigns, ErrorResponse } from '@/utils/firebaseUtils';
 
 interface ProfileSavedDesignsProps {
   userId: string;
@@ -24,7 +24,8 @@ export const ProfileSavedDesigns: React.FC<ProfileSavedDesignsProps> = ({ userId
         const savedDesigns = await getSavedDesigns(userId);
         
         if ('error' in savedDesigns) {
-          setError(savedDesigns.message);
+          const errorData = savedDesigns as ErrorResponse;
+          setError(errorData.message);
           setDesigns([]);
         } else {
           setDesigns(savedDesigns as any[]);

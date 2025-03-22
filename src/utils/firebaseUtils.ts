@@ -410,16 +410,35 @@ export const getOrders = async (userId: string): Promise<Order[] | ErrorResponse
   }
 };
 
-export const getOrderDetails = async (orderId: string): Promise<Order | null> => {
+export const getOrderDetails = async (orderId: string): Promise<Order | ErrorResponse> => {
   try {
+    if (!navigator.onLine) {
+      return { 
+        error: true, 
+        message: 'You are offline. Please check your internet connection and try again.',
+        code: 'OFFLINE'
+      };
+    }
+    
     const orderDoc = await getDoc(doc(db, 'orders', orderId));
     if (orderDoc.exists()) {
-      return { id: orderDoc.id, ...orderDoc.data() };
+      return { 
+        id: orderDoc.id, 
+        ...orderDoc.data()
+      } as Order;
     }
-    return null;
+    return { 
+      error: true, 
+      message: 'Order not found', 
+      code: 'NOT_FOUND' 
+    };
   } catch (error) {
     console.error('Error getting order details:', error);
-    return null;
+    return { 
+      error: true, 
+      message: error instanceof Error ? error.message : 'Error retrieving order details', 
+      code: 'ERROR' 
+    };
   }
 };
 
@@ -452,8 +471,16 @@ export const saveDesign = async (userId: string, designData: any): Promise<{ suc
   }
 };
 
-export const getSavedDesigns = async (userId: string): Promise<any[]> => {
+export const getSavedDesigns = async (userId: string): Promise<any[] | ErrorResponse> => {
   try {
+    if (!navigator.onLine) {
+      return { 
+        error: true, 
+        message: 'You are offline. Please check your internet connection and try again.',
+        code: 'OFFLINE'
+      };
+    }
+    
     const q = query(collection(db, 'savedDesigns'), where('userId', '==', userId));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({
@@ -462,7 +489,11 @@ export const getSavedDesigns = async (userId: string): Promise<any[]> => {
     }));
   } catch (error) {
     console.error('Error getting saved designs:', error);
-    return [];
+    return { 
+      error: true, 
+      message: error instanceof Error ? error.message : 'Error retrieving saved designs', 
+      code: 'ERROR' 
+    };
   }
 };
 
