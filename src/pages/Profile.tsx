@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
@@ -8,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { User, Package, ShoppingBag, CreditCard, Settings, LogOut, IndianRupee, Mail, Phone, MapPin, Edit, Save, Plus } from 'lucide-react';
+import { User, Package, ShoppingBag, CreditCard, Settings, LogOut, IndianRupee, Mail, Phone, MapPin, Edit, Save, Plus, Trash } from 'lucide-react';
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -19,6 +20,34 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+
+// Define interface for user profile data
+interface UserProfile {
+  id?: string;
+  userId?: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  addresses?: Array<{
+    id: string;
+    street: string;
+    city: string;
+    state: string;
+    pincode: string;
+    country: string;
+    isDefault?: boolean;
+  }>;
+}
+
+// Define interface for order data
+interface Order {
+  id: string;
+  userId: string;
+  totalAmount: number;
+  status: string;
+  createdAt: any; // Firebase timestamp
+  items?: any[];
+}
 
 const profileSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -40,9 +69,9 @@ const Profile = () => {
   const { currentUser, signOut } = useAuth();
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
-  const [userProfile, setUserProfile] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [profileId, setProfileId] = useState<string | null>(null);
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [addressDialogOpen, setAddressDialogOpen] = useState(false);
   const [addresses, setAddresses] = useState<any[]>([]);
@@ -81,7 +110,7 @@ const Profile = () => {
         const profile = await getUserProfile(currentUser.uid);
         
         if (profile) {
-          setUserProfile(profile);
+          setUserProfile(profile as UserProfile);
           setProfileId(profile.id);
           
           profileForm.reset({
@@ -107,7 +136,7 @@ const Profile = () => {
           const createdProfile = await getUserProfile(currentUser.uid);
           
           if (createdProfile) {
-            setUserProfile(createdProfile);
+            setUserProfile(createdProfile as UserProfile);
             setProfileId(createdProfile.id);
             
             profileForm.reset({
@@ -119,7 +148,7 @@ const Profile = () => {
         }
         
         const userOrders = await getOrders(currentUser.uid);
-        setOrders(userOrders);
+        setOrders(userOrders as Order[]);
       } catch (error) {
         console.error('Error fetching user data:', error);
         toast({
