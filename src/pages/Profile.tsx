@@ -5,8 +5,10 @@ import { Footer } from '@/components/Footer';
 import { ProfileError } from '@/components/profile/ProfileError';
 import { ProfileContent } from '@/components/profile/ProfileContent';
 import { useProfileData } from '@/hooks/useProfileData';
+import { useNavigate } from 'react-router-dom';
 
 const Profile = () => {
+  const navigate = useNavigate();
   const {
     currentUser,
     userProfile,
@@ -18,6 +20,13 @@ const Profile = () => {
     handleRetry,
     fetchUserProfile
   } = useProfileData();
+
+  // If user is not logged in, redirect to login
+  React.useEffect(() => {
+    if (!currentUser && !isLoading) {
+      navigate('/login');
+    }
+  }, [currentUser, isLoading, navigate]);
 
   if (!currentUser) {
     return null; // Will redirect in useEffect

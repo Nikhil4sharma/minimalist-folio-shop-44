@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Loader2 } from 'lucide-react';
+import { Address } from '@/utils/firebaseUtils';
 
 const addressSchema = z.object({
   line1: z.string().min(1, 'Address line 1 is required'),
@@ -30,27 +31,51 @@ type AddressFormValues = z.infer<typeof addressSchema>;
 interface AddAddressFormProps {
   onSave: (address: AddressFormValues) => void;
   onCancel: () => void;
+  initialData?: Address;
 }
 
-export const AddAddressForm: React.FC<AddAddressFormProps> = ({ onSave, onCancel }) => {
+export const AddAddressForm: React.FC<AddAddressFormProps> = ({ 
+  onSave, 
+  onCancel, 
+  initialData 
+}) => {
   const form = useForm<AddressFormValues>({
     resolver: zodResolver(addressSchema),
     defaultValues: {
-      line1: '',
-      line2: '',
-      city: '',
-      state: '',
-      postalCode: '',
-      isDefault: false,
+      line1: initialData?.line1 || '',
+      line2: initialData?.line2 || '',
+      city: initialData?.city || '',
+      state: initialData?.state || '',
+      postalCode: initialData?.postalCode || '',
+      isDefault: initialData?.isDefault || false,
     },
   });
+  
+  // Update form when initialData changes
+  useEffect(() => {
+    if (initialData) {
+      form.reset({
+        line1: initialData.line1,
+        line2: initialData.line2 || '',
+        city: initialData.city,
+        state: initialData.state,
+        postalCode: initialData.postalCode,
+        isDefault: initialData.isDefault || false,
+      });
+    }
+  }, [initialData, form]);
   
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   
   const handleSubmit = async (values: AddressFormValues) => {
     setIsSubmitting(true);
     try {
-      await onSave(values);
+      // Preserve the ID if we're editing an existing address
+      const addressData = initialData?.id 
+        ? { ...values, id: initialData.id } 
+        : values;
+        
+      await onSave(addressData);
     } finally {
       setIsSubmitting(false);
     }
@@ -160,10 +185,10 @@ export const AddAddressForm: React.FC<AddAddressFormProps> = ({ onSave, onCancel
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
+                {initialData ? 'Updating...' : 'Saving...'}
               </>
             ) : (
-              'Save Address'
+              initialData ? 'Update Address' : 'Save Address'
             )}
           </Button>
         </div>

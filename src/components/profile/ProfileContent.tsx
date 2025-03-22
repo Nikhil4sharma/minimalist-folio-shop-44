@@ -1,11 +1,12 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { ProfileOrdersCard } from '@/components/profile/ProfileOrdersCard';
 import { ProfileSavedDesigns } from '@/components/profile/ProfileSavedDesigns';
 import { ProfileAddressManager } from '@/components/profile/ProfileAddressManager';
+import { ProfileEditForm } from '@/components/profile/ProfileEditForm';
 import { UserProfile, Order } from '@/utils/firebaseUtils';
 
 interface ProfileContentProps {
@@ -25,17 +26,20 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
   isOrdersLoading,
   onProfileUpdated
 }) => {
+  const [activeTab, setActiveTab] = useState('orders');
+
   return (
     <div className="container mx-auto px-4 py-28">
       <ProfileHeader 
-        name={userProfile?.name || ''} 
+        name={userProfile?.name || currentUser?.displayName || ''} 
         email={userProfile?.email || currentUser?.email || ''} 
         isLoading={isLoading} 
       />
 
-      <Tabs defaultValue="orders" className="mb-12">
+      <Tabs defaultValue="orders" className="mb-12" value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-6">
           <TabsTrigger value="orders">My Orders</TabsTrigger>
+          <TabsTrigger value="profile">Edit Profile</TabsTrigger>
           <TabsTrigger value="addresses">My Addresses</TabsTrigger>
           <TabsTrigger value="designs">Saved Designs</TabsTrigger>
         </TabsList>
@@ -44,6 +48,15 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
           <ProfileOrdersCard 
             orders={orders} 
             isLoading={isOrdersLoading} 
+          />
+        </TabsContent>
+        
+        <TabsContent value="profile">
+          <ProfileEditForm 
+            userProfile={userProfile}
+            currentUser={currentUser}
+            isLoading={isLoading}
+            onProfileUpdated={onProfileUpdated}
           />
         </TabsContent>
         

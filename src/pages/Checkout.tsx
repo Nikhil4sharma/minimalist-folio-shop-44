@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { useCart } from '@/contexts/CartContext';
@@ -7,17 +7,38 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { IndianRupee, CreditCard, Landmark, Truck, ChevronRight, ShoppingBag } from 'lucide-react';
+import { 
+  IndianRupee, 
+  CreditCard, 
+  Landmark, 
+  Truck, 
+  ChevronRight, 
+  ShoppingBag,
+  PlusCircle,
+  MapPin
+} from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { getUserProfile, addAddressToProfile, Address, createOrder } from '@/utils/firebaseUtils';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { AddAddressForm } from '@/components/profile/AddAddressForm';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const Checkout = () => {
   const { cartItems, subtotal, shipping, tax, total, clearCart } = useCart();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { currentUser } = useAuth();
   const [paymentMethod, setPaymentMethod] = useState('upi');
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [loadingAddresses, setLoadingAddresses] = useState(false);
+  const [addressSheetOpen, setAddressSheetOpen] = useState(false);
+  const [saveAddress, setSaveAddress] = useState(true);
   
-  // Form state
+  // Form state for new address
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -28,6 +49,36 @@ const Checkout = () => {
     pincode: '',
   });
   
+  // Fetch user addresses if logged in
+  useEffect(() => {
+    const fetchUserAddresses = async () => {
+      if (currentUser) {
+        setLoadingAddresses(true);
+        try {
+          const profileData = await getUserProfile(currentUser.uid);
+          
+          if ('error' in profileData) {
+            console.error('Error fetching user profile:', profileData.message);
+          } else {
+            setAddresses(profileData.addresses || []);
+            
+            // Auto-select default address if available
+            const defaultAddress = profileData.addresses?.find(addr => addr.isDefault);
+            if (defaultAddress && defaultAddress.id) {
+              setSelectedAddressId(defaultAddress.id);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching addresses:', error);
+        } finally {
+          setLoadingAddresses(false);
+        }
+      }
+    };
+    
+    fetchUserAddresses();
+  }, [currentUser]);
+  
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -36,30 +87,146 @@ const Checkout = () => {
     }));
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Simple validation
-    if (Object.values(formData).some(value => value === '')) {
+    // Check if user has selected a saved address or filled in the form
+    if (!selectedAddressId && Object.values(formData).some(value => value === '')) {
       toast({
         title: "Error",
-        description: "Please fill in all fields",
+        description: "Please select an address or fill in all fields",
         variant: "destructive",
       });
       return;
     }
     
-    // Process order
-    toast({
-      title: "Order Placed Successfully!",
-      description: "Thank you for your purchase. Your order has been received.",
-    });
+    try {
+      let shippingAddress: any;
+      
+      // If user selected a saved address
+      if (selectedAddressId) {
+        const selectedAddress = addresses.find(addr => addr.id === selectedAddressId);
+        if (!selectedAddress) {
+          throw new Error('Selected address not found');
+        }
+        shippingAddress = selectedAddress;
+      } else {
+        // Using the new address from the form
+        shippingAddress = {
+          line1: formData.address,
+          city: formData.city,
+          state: formData.state,
+          postalCode: formData.pincode,
+        };
+        
+        // Save address to profile if user is logged in and opted to save
+        if (currentUser && saveAddress) {
+          const profileData = await getUserProfile(currentUser.uid);
+          
+          if (!('error' in profileData) && profileData.id) {
+            await addAddressToProfile(profileData.id, shippingAddress);
+          }
+        }
+      }
+      
+      // Create order data
+      const orderData = {
+        items: cartItems,
+        total: total,
+        status: 'pending',
+        shippingAddress,
+        paymentMethod,
+      };
+      
+      // If user is logged in, create order in database
+      if (currentUser) {
+        const result = await createOrder(currentUser.uid, orderData);
+        
+        if (!result.success) {
+          throw new Error(result.error?.message || 'Failed to create order');
+        }
+      }
+      
+      // Show success message
+      toast({
+        title: "Order Placed Successfully!",
+        description: "Thank you for your purchase. Your order has been received.",
+      });
+      
+      // Clear cart and redirect
+      setTimeout(() => {
+        clearCart();
+        navigate('/');
+      }, 2000);
+    } catch (error) {
+      console.error('Error creating order:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to process your order",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const handleAddAddress = () => {
+    setAddressSheetOpen(true);
+  };
+  
+  const handleSaveAddress = async (address: any) => {
+    if (!currentUser) {
+      toast({
+        title: "Error saving address",
+        description: "Please log in to save addresses",
+        variant: "destructive",
+      });
+      return;
+    }
     
-    // Clear cart and redirect
-    setTimeout(() => {
-      clearCart();
-      navigate('/');
-    }, 2000);
+    try {
+      const profileData = await getUserProfile(currentUser.uid);
+      
+      if ('error' in profileData) {
+        throw new Error(profileData.message);
+      }
+      
+      if (!profileData.id) {
+        throw new Error('Profile not found');
+      }
+      
+      const result = await addAddressToProfile(profileData.id, address);
+      
+      if (result === true) {
+        toast({
+          title: "Address saved",
+          description: "Your address has been saved successfully",
+        });
+        setAddressSheetOpen(false);
+        
+        // Refresh addresses
+        const updatedProfile = await getUserProfile(currentUser.uid);
+        if (!('error' in updatedProfile)) {
+          setAddresses(updatedProfile.addresses || []);
+          
+          // Auto-select the newly added address
+          const newAddress = updatedProfile.addresses.find(addr => 
+            addr.line1 === address.line1 && addr.postalCode === address.postalCode
+          );
+          
+          if (newAddress && newAddress.id) {
+            setSelectedAddressId(newAddress.id);
+          }
+        }
+      } else if (typeof result === 'object' && 'error' in result) {
+        throw new Error(result.message);
+      }
+    } catch (error) {
+      console.error('Error saving address:', error);
+      toast({
+        title: "Error saving address",
+        description: error instanceof Error ? error.message : "There was an error saving your address",
+        variant: "destructive",
+      });
+    }
   };
   
   // If cart is empty, redirect to cart page
@@ -111,6 +278,7 @@ const Checkout = () => {
                         value={formData.fullName}
                         onChange={handleInputChange}
                         className="bg-white dark:bg-navy-dark"
+                        disabled={!!selectedAddressId}
                       />
                     </div>
                     <div className="space-y-2">
@@ -123,6 +291,7 @@ const Checkout = () => {
                         value={formData.email}
                         onChange={handleInputChange}
                         className="bg-white dark:bg-navy-dark"
+                        disabled={!!selectedAddressId}
                       />
                     </div>
                     <div className="space-y-2 md:col-span-2">
@@ -134,6 +303,7 @@ const Checkout = () => {
                         value={formData.phone}
                         onChange={handleInputChange}
                         className="bg-white dark:bg-navy-dark"
+                        disabled={!!selectedAddressId}
                       />
                     </div>
                   </div>
@@ -141,55 +311,166 @@ const Checkout = () => {
                 
                 {/* Shipping Address */}
                 <div className="bg-gray-50 dark:bg-navy-light p-6 rounded-xl">
-                  <h2 className="text-xl font-semibold mb-4">Shipping Address</h2>
-                  <div className="grid grid-cols-1 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="address">Street Address</Label>
-                      <Input
-                        id="address"
-                        name="address"
-                        placeholder="123 Main St, Apt 4B"
-                        value={formData.address}
-                        onChange={handleInputChange}
-                        className="bg-white dark:bg-navy-dark"
-                      />
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="city">City</Label>
-                        <Input
-                          id="city"
-                          name="city"
-                          placeholder="Mumbai"
-                          value={formData.city}
-                          onChange={handleInputChange}
-                          className="bg-white dark:bg-navy-dark"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="state">State</Label>
-                        <Input
-                          id="state"
-                          name="state"
-                          placeholder="Maharashtra"
-                          value={formData.state}
-                          onChange={handleInputChange}
-                          className="bg-white dark:bg-navy-dark"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="pincode">PIN Code</Label>
-                        <Input
-                          id="pincode"
-                          name="pincode"
-                          placeholder="400001"
-                          value={formData.pincode}
-                          onChange={handleInputChange}
-                          className="bg-white dark:bg-navy-dark"
-                        />
-                      </div>
-                    </div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-semibold">Shipping Address</h2>
+                    
+                    {currentUser && (
+                      <Button 
+                        type="button" 
+                        variant="outline"
+                        className="rounded-full"
+                        onClick={handleAddAddress}
+                      >
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Add New Address
+                      </Button>
+                    )}
                   </div>
+                  
+                  {/* Saved addresses */}
+                  {currentUser && (
+                    <div className="mb-6">
+                      <h3 className="text-sm font-medium mb-3">Your Saved Addresses</h3>
+                      
+                      {loadingAddresses ? (
+                        <div className="space-y-3">
+                          <Skeleton className="h-20 w-full rounded-lg" />
+                          <Skeleton className="h-20 w-full rounded-lg" />
+                        </div>
+                      ) : addresses.length > 0 ? (
+                        <div className="space-y-3 mb-6">
+                          <RadioGroup 
+                            value={selectedAddressId || ''} 
+                            onValueChange={(value) => {
+                              setSelectedAddressId(value);
+                              if (value === '') {
+                                setFormData({
+                                  fullName: '',
+                                  email: '',
+                                  phone: '',
+                                  address: '',
+                                  city: '',
+                                  state: '',
+                                  pincode: '',
+                                });
+                              }
+                            }}
+                          >
+                            {addresses.map((address) => (
+                              <div 
+                                key={address.id}
+                                className="flex items-start space-x-3 border rounded-lg p-4 bg-white dark:bg-navy-dark"
+                              >
+                                <RadioGroupItem value={address.id || ''} id={`address-${address.id}`} className="mt-1" />
+                                <Label htmlFor={`address-${address.id}`} className="cursor-pointer flex-1">
+                                  <div className="flex items-start gap-2">
+                                    <MapPin className="h-5 w-5 mt-0.5 text-cyan flex-shrink-0" />
+                                    <div>
+                                      <p className="font-medium">
+                                        {address.line1}
+                                        {address.line2 && <span>, {address.line2}</span>}
+                                      </p>
+                                      <p className="text-gray-600 dark:text-gray-300">
+                                        {address.city}, {address.state} {address.postalCode}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </Label>
+                              </div>
+                            ))}
+                            
+                            <div 
+                              className="flex items-start space-x-3 border rounded-lg p-4 bg-white dark:bg-navy-dark"
+                            >
+                              <RadioGroupItem value="" id="address-new" className="mt-1" />
+                              <Label htmlFor="address-new" className="cursor-pointer flex-1">
+                                <div className="flex items-start gap-2">
+                                  <PlusCircle className="h-5 w-5 mt-0.5 text-cyan flex-shrink-0" />
+                                  <div>
+                                    <p className="font-medium">Use a different address</p>
+                                    <p className="text-gray-600 dark:text-gray-300">
+                                      Fill in the address form below
+                                    </p>
+                                  </div>
+                                </div>
+                              </Label>
+                            </div>
+                          </RadioGroup>
+                        </div>
+                      ) : (
+                        <p className="text-gray-500 dark:text-gray-400 mb-4">
+                          You don't have any saved addresses yet. Add one now or fill in the form below.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Manual address form - show when no address is selected */}
+                  {!selectedAddressId && (
+                    <div className="grid grid-cols-1 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="address">Street Address</Label>
+                        <Input
+                          id="address"
+                          name="address"
+                          placeholder="123 Main St, Apt 4B"
+                          value={formData.address}
+                          onChange={handleInputChange}
+                          className="bg-white dark:bg-navy-dark"
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="city">City</Label>
+                          <Input
+                            id="city"
+                            name="city"
+                            placeholder="Mumbai"
+                            value={formData.city}
+                            onChange={handleInputChange}
+                            className="bg-white dark:bg-navy-dark"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="state">State</Label>
+                          <Input
+                            id="state"
+                            name="state"
+                            placeholder="Maharashtra"
+                            value={formData.state}
+                            onChange={handleInputChange}
+                            className="bg-white dark:bg-navy-dark"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="pincode">PIN Code</Label>
+                          <Input
+                            id="pincode"
+                            name="pincode"
+                            placeholder="400001"
+                            value={formData.pincode}
+                            onChange={handleInputChange}
+                            className="bg-white dark:bg-navy-dark"
+                          />
+                        </div>
+                      </div>
+                      
+                      {currentUser && (
+                        <div className="flex items-center space-x-2 mt-2">
+                          <input
+                            type="checkbox"
+                            id="saveAddress"
+                            checked={saveAddress}
+                            onChange={(e) => setSaveAddress(e.target.checked)}
+                            className="rounded border-gray-300 text-cyan focus:ring-cyan"
+                          />
+                          <Label htmlFor="saveAddress" className="text-sm font-normal cursor-pointer">
+                            Save this address to my profile
+                          </Label>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 
                 {/* Payment Method */}
@@ -332,6 +613,18 @@ const Checkout = () => {
           </div>
         </div>
       </section>
+      
+      <Sheet open={addressSheetOpen} onOpenChange={setAddressSheetOpen}>
+        <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Add New Address</SheetTitle>
+            <SheetDescription>
+              Enter your address details below
+            </SheetDescription>
+          </SheetHeader>
+          <AddAddressForm onSave={handleSaveAddress} onCancel={() => setAddressSheetOpen(false)} />
+        </SheetContent>
+      </Sheet>
       
       <Footer />
     </div>
