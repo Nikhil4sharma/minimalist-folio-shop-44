@@ -34,11 +34,23 @@ export const getUserProfile = async (userId: string) => {
     const q = query(collection(db, 'userProfiles'), where('userId', '==', userId));
     const querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) {
-      return { id: querySnapshot.docs[0].id, ...querySnapshot.docs[0].data() };
+      // Convert Firestore document to UserProfile type with all properties
+      const data = querySnapshot.docs[0].data();
+      return { 
+        id: querySnapshot.docs[0].id, 
+        userId: data.userId,
+        name: data.name || '',
+        email: data.email || '',
+        phone: data.phone || '',
+        addresses: Array.isArray(data.addresses) ? data.addresses : [],
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt
+      };
     }
     return null;
   } catch (error) {
     console.error('Error getting user profile:', error);
+    // Return null instead of throwing, to avoid infinite loading
     return null;
   }
 };

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
@@ -73,9 +72,11 @@ const Profile = () => {
   const [profileId, setProfileId] = useState<string | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [addressDialogOpen, setAddressDialogOpen] = useState(false);
   const [addresses, setAddresses] = useState<any[]>([]);
   const [editingAddress, setEditingAddress] = useState<any>(null);
+  const [offlineMode, setOfflineMode] = useState(false);
 
   const profileForm = useForm<z.infer<typeof profileSchema>>({
     resolver: zodResolver(profileSchema),
@@ -99,70 +100,104 @@ const Profile = () => {
   });
 
   useEffect(() => {
+    const handleOnlineStatus = () => {
+      setOfflineMode(!navigator.onLine);
+      if (navigator.onLine && error) {
+        setError(null);
+        fetchUserData();
+      }
+    };
+
+    window.addEventListener('online', handleOnlineStatus);
+    window.addEventListener('offline', handleOnlineStatus);
+    setOfflineMode(!navigator.onLine);
+
+    return () => {
+      window.removeEventListener('online', handleOnlineStatus);
+      window.removeEventListener('offline', handleOnlineStatus);
+    };
+  }, [error]);
+
+  const fetchUserData = async () => {
+    if (!currentUser) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    const timeoutId = setTimeout(() => {
+      if (loading) {
+        setLoading(false);
+        setError("Request timed out. Please check your internet connection and try again.");
+        setOfflineMode(true);
+      }
+    }, 10000);
+    
+    try {
+      const profileData = await getUserProfile(currentUser.uid);
+      
+      clearTimeout(timeoutId);
+      
+      if (profileData) {
+        setUserProfile(profileData);
+        setProfileId(profileData.id || null);
+        
+        profileForm.reset({
+          name: profileData.name || currentUser.displayName || '',
+          email: profileData.email || currentUser.email || '',
+          phone: profileData.phone || '',
+        });
+        
+        if (profileData.addresses && Array.isArray(profileData.addresses)) {
+          setAddresses(profileData.addresses);
+        }
+      } else {
+        const name = currentUser.displayName || '';
+        const email = currentUser.email || '';
+        
+        const newProfile = {
+          name,
+          email,
+          userId: currentUser.uid,
+        };
+        
+        await createUserProfile(currentUser.uid, newProfile);
+        const createdProfileData = await getUserProfile(currentUser.uid);
+        
+        if (createdProfileData) {
+          setUserProfile(createdProfileData);
+          setProfileId(createdProfileData.id || null);
+          
+          profileForm.reset({
+            name,
+            email,
+            phone: '',
+          });
+        }
+      }
+      
+      const userOrders = await getOrders(currentUser.uid);
+      setOrders(userOrders as Order[]);
+      
+      setLoading(false);
+    } catch (error) {
+      clearTimeout(timeoutId);
+      console.error('Error fetching user data:', error);
+      setError("Failed to load profile data. Please try again.");
+      setLoading(false);
+      
+      toast({
+        title: 'Error',
+        description: 'Failed to load profile data. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  useEffect(() => {
     if (!currentUser) {
       navigate('/login');
       return;
     }
-
-    const fetchUserData = async () => {
-      setLoading(true);
-      try {
-        const profileData = await getUserProfile(currentUser.uid);
-        
-        if (profileData) {
-          // Properly cast the profileData to UserProfile type
-          const profile = profileData as UserProfile;
-          setUserProfile(profile);
-          setProfileId(profile.id || null);
-          
-          profileForm.reset({
-            name: profile.name || currentUser.displayName || '',
-            email: profile.email || currentUser.email || '',
-            phone: profile.phone || '',
-          });
-          
-          if (profile.addresses && Array.isArray(profile.addresses)) {
-            setAddresses(profile.addresses);
-          }
-        } else {
-          const name = currentUser.displayName || '';
-          const email = currentUser.email || '';
-          
-          const newProfile = {
-            name,
-            email,
-            userId: currentUser.uid,
-          };
-          
-          await createUserProfile(currentUser.uid, newProfile);
-          const createdProfileData = await getUserProfile(currentUser.uid);
-          
-          if (createdProfileData) {
-            const createdProfile = createdProfileData as UserProfile;
-            setUserProfile(createdProfile);
-            setProfileId(createdProfile.id || null);
-            
-            profileForm.reset({
-              name,
-              email,
-              phone: '',
-            });
-          }
-        }
-        
-        const userOrders = await getOrders(currentUser.uid);
-        setOrders(userOrders as Order[]);
-      } catch (error) {
-        console.error('Error fetching user data:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to load profile data. Please try again.',
-          variant: 'destructive',
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
 
     fetchUserData();
   }, [currentUser, navigate]);
@@ -319,6 +354,53 @@ const Profile = () => {
       });
     }
   };
+
+  if (offlineMode) {
+    return (
+      <div className="min-h-screen bg-white dark:bg-navy">
+        <Navbar />
+        <div className="pt-28 pb-12 px-4 flex justify-center items-center">
+          <div className="text-center">
+            <div className="rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto"></div>
+            <p className="mt-4 text-navy dark:text-white">You are currently offline</p>
+            <p className="mt-2 text-navy dark:text-white text-sm">Please check your internet connection</p>
+            <Button 
+              onClick={() => {
+                setOfflineMode(false);
+                fetchUserData();
+              }}
+              className="mt-4 bg-cyan hover:bg-cyan-light"
+            >
+              Try Again
+            </Button>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-white dark:bg-navy">
+        <Navbar />
+        <div className="pt-28 pb-12 px-4 flex justify-center items-center">
+          <div className="text-center">
+            <div className="rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto"></div>
+            <p className="mt-4 text-navy dark:text-white">Error loading profile</p>
+            <p className="mt-2 text-navy dark:text-white text-sm">{error}</p>
+            <Button 
+              onClick={fetchUserData}
+              className="mt-4 bg-cyan hover:bg-cyan-light"
+            >
+              Try Again
+            </Button>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   if (loading) {
     return (
