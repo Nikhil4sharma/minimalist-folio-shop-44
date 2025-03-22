@@ -1,7 +1,7 @@
 
-import { auth, db, setupAdminUser } from '@/config/firebase';
+import { auth, db } from '@/config/firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 // Function to check if a user is an admin
 export const checkIfUserIsAdmin = async (uid: string): Promise<boolean> => {
@@ -15,6 +15,21 @@ export const checkIfUserIsAdmin = async (uid: string): Promise<boolean> => {
     return false;
   } catch (error) {
     console.error('Error checking admin status:', error);
+    return false;
+  }
+};
+
+// Local implementation of setupAdminUser function
+const setupAdminUser = async (uid: string): Promise<boolean> => {
+  try {
+    await setDoc(doc(db, 'users', uid), {
+      role: 'admin',
+      createdAt: new Date(),
+    });
+    console.log('Admin user created successfully');
+    return true;
+  } catch (error) {
+    console.error('Error creating admin user:', error);
     return false;
   }
 };
