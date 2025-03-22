@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
@@ -19,14 +19,11 @@ import { QuantitySelector } from '@/components/product-detail/QuantitySelector';
 import { PricingTable } from '@/components/product-detail/PricingTable';
 import { AddToCartSection } from '@/components/product-detail/AddToCartSection';
 
-// Import the uploaded image
-const productImage = '/lovable-uploads/a3132fc2-9a35-41e0-87e3-e69fcdc7f66e.png';
-
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { addToCart } = useCart();
   
-  // In a real app, you would fetch product data from an API
+  // Find the product by ID or use the first product as fallback
   const product = products.find(p => p.id === id) || products[0];
   
   // State for all customization options
@@ -43,8 +40,46 @@ const ProductDetail = () => {
   const [designType, setDesignType] = useState<'upload' | 'expert'>('upload');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   
+  // Set default options based on product category
+  useEffect(() => {
+    if (product) {
+      // Set default GSM based on product details
+      if (product.details && product.details.paperWeight) {
+        const gsm = product.details.paperWeight.includes('600') ? '600' : '350';
+        setSelectedGSM(gsm);
+      }
+      
+      // Set default paper type based on product details
+      if (product.details && product.details.paperType) {
+        const paperType = product.details.paperType.toLowerCase();
+        if (paperType.includes('keycolor') || paperType.includes('keycolour')) {
+          setSelectedPaperType('keycolor');
+        } else if (paperType.includes('cotton')) {
+          setSelectedPaperType('cotton');
+        } else if (paperType.includes('mohawk')) {
+          setSelectedPaperType('mohawk');
+        } else if (paperType.includes('suede')) {
+          setSelectedPaperType('soft-suede');
+        } else {
+          setSelectedPaperType('matt');
+        }
+      }
+      
+      // Set default treatment based on category
+      if (product.category === 'foiling') {
+        setSelectedFoilpress('single');
+      } else if (product.category === 'embossing') {
+        setSelectedEmbossing('single');
+      } else if (product.category === 'electroplating') {
+        setSelectedElectroplatingFront('silver');
+      } else if (product.category === 'spot-uv') {
+        // Spot UV stays at default 'none'
+      }
+    }
+  }, [product]);
+  
   // Calculate price based on selected options
-  const basePrice = product.price;
+  const basePrice = product.price / parseInt(Object.keys(product.pricing)[0]);
   
   const gsmMultiplier = selectedGSM === '600' ? 1.2 : 1;
   
@@ -52,6 +87,7 @@ const ProductDetail = () => {
     '100': 1,
     '250': 2.2,
     '500': 4,
+    '750': 6,
     '1000': 7,
     '2000': 13,
     '5000': 30,
@@ -97,7 +133,7 @@ const ProductDetail = () => {
                                 
   const unitPrice = (basePrice * gsmMultiplier * sizeMultiplier);
   const quantityFactor = quantityMap[selectedQuantity];
-  const totalPrice = (unitPrice * quantityFactor) + additionalOptionsPrice;
+  const totalPrice = (unitPrice * parseInt(selectedQuantity)) + additionalOptionsPrice;
   const perCardPrice = totalPrice / parseInt(selectedQuantity);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -135,7 +171,7 @@ const ProductDetail = () => {
           <div className="flex flex-col lg:flex-row gap-8">
             {/* Product Image */}
             <ProductImageGallery 
-              mainImage={productImage} 
+              mainImage={product.image} 
               productName={product.name} 
             />
             
@@ -144,7 +180,7 @@ const ProductDetail = () => {
               <ProductHeader 
                 name={product.name}
                 category={getCategoryName(product.category)}
-                basePrice={basePrice}
+                basePrice={product.price}
                 description={product.description}
               />
               

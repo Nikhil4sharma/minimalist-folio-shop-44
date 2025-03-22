@@ -5,7 +5,8 @@ import { Footer } from '@/components/Footer';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { Filter, ArrowRight } from 'lucide-react';
+import { Filter, ArrowRight, IndianRupee } from 'lucide-react';
+import { products, getCategoryName } from '@/utils/productUtils';
 
 const Products = () => {
   const [filter, setFilter] = useState('all');
@@ -62,16 +63,59 @@ const Products = () => {
             >
               Spot UV Cards
             </Button>
+            <Button 
+              variant={filter === 'embossing' ? 'default' : 'outline'} 
+              className={`rounded-full ${filter === 'embossing' ? 'bg-cyan hover:bg-cyan-light' : ''}`}
+              onClick={() => setFilter('embossing')}
+            >
+              Embossed Cards
+            </Button>
+            <Button 
+              variant={filter === 'letterpress' ? 'default' : 'outline'} 
+              className={`rounded-full ${filter === 'letterpress' ? 'bg-cyan hover:bg-cyan-light' : ''}`}
+              onClick={() => setFilter('letterpress')}
+            >
+              Letterpress Cards
+            </Button>
+            <Button 
+              variant={filter === 'black-premium' ? 'default' : 'outline'} 
+              className={`rounded-full ${filter === 'black-premium' ? 'bg-cyan hover:bg-cyan-light' : ''}`}
+              onClick={() => setFilter('black-premium')}
+            >
+              Black Premium
+            </Button>
+            <Button 
+              variant={filter === 'metal' ? 'default' : 'outline'} 
+              className={`rounded-full ${filter === 'metal' ? 'bg-cyan hover:bg-cyan-light' : ''}`}
+              onClick={() => setFilter('metal')}
+            >
+              Metal Cards
+            </Button>
+            <Button 
+              variant={filter === 'acrylic' ? 'default' : 'outline'} 
+              className={`rounded-full ${filter === 'acrylic' ? 'bg-cyan hover:bg-cyan-light' : ''}`}
+              onClick={() => setFilter('acrylic')}
+            >
+              Acrylic Cards
+            </Button>
           </div>
           
           {/* Product Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredProducts.map((product) => (
               <Card key={product.id} className="bg-white dark:bg-navy-light border-gray-200 dark:border-white/10 overflow-hidden">
-                <div className="aspect-[4/3] bg-gray-100 dark:bg-navy-dark relative">
-                  <div className="absolute inset-0 flex items-center justify-center text-gray-400 dark:text-gray-600">
-                    [Product Image]
-                  </div>
+                <div className="aspect-[4/3] bg-gray-100 dark:bg-navy-dark relative overflow-hidden">
+                  {product.image ? (
+                    <img 
+                      src={product.image} 
+                      alt={product.name} 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center text-gray-400 dark:text-gray-600">
+                      [Product Image]
+                    </div>
+                  )}
                 </div>
                 <CardHeader>
                   <CardTitle className="text-navy dark:text-white">{product.name}</CardTitle>
@@ -80,6 +124,13 @@ const Products = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
+                  <div className="flex items-center text-lg font-semibold mb-2">
+                    <IndianRupee className="h-4 w-4 mr-1" />
+                    {product.price.toLocaleString('en-IN')}
+                    <span className="text-sm font-normal text-gray-500 ml-2">
+                      ({product.perItemPrice.toLocaleString('en-IN')} per card)
+                    </span>
+                  </div>
                   <p className="text-gray-700 dark:text-gray-300 line-clamp-3">{product.description}</p>
                 </CardContent>
                 <CardFooter>
@@ -100,61 +151,5 @@ const Products = () => {
     </div>
   );
 };
-
-function getCategoryName(category: string) {
-  const categories: Record<string, string> = {
-    'foiling': 'Foiling Cards',
-    'quick': 'Quick Cards',
-    'electroplating': 'Electroplating Cards',
-    'spot-uv': 'Spot UV Cards'
-  };
-  
-  return categories[category] || category;
-}
-
-const products = [
-  {
-    id: '1',
-    name: 'Classic Foil Business Card',
-    description: 'Elegant business card with gold foil accents on premium paper stock. These cards make a statement with their subtle shimmer and luxurious feel. Perfect for executives, consultants, and professionals in creative industries.',
-    price: 499,
-    category: 'foiling'
-  },
-  {
-    id: '2',
-    name: 'Quick Matte Business Card',
-    description: 'Professional matte-finished cards delivered in 2-3 business days. These no-nonsense cards provide a clean, sophisticated look with their smooth matte finish. Ideal for business professionals who need quality cards quickly.',
-    price: 299,
-    category: 'quick'
-  },
-  {
-    id: '3',
-    name: 'Silver Electroplated Edge Card',
-    description: 'Luxury cards with silver electroplated edges for a sophisticated look. The metallic shine around the edges creates a striking visual effect that catches light from every angle. These premium cards are perfect for making a memorable first impression.',
-    price: 599,
-    category: 'electroplating'
-  },
-  {
-    id: '4',
-    name: 'Spot UV Gloss Highlight Card',
-    description: 'Premium cards with strategic glossy UV highlights over a matte base. This contrast between matte and gloss creates a tactile experience that recipients won\'t forget. The selective glossy elements can emphasize logos, text, or design elements.',
-    price: 399,
-    category: 'spot-uv'
-  },
-  {
-    id: '5',
-    name: 'Copper Foil Accent Card',
-    description: 'Stunning business cards with copper foil highlights on dark stock. The warm copper tones create a distinctive and memorable impression, perfect for luxury brands and creative professionals seeking a unique business card.',
-    price: 549,
-    category: 'foiling'
-  },
-  {
-    id: '6',
-    name: 'Quick Glossy Business Card',
-    description: 'Vibrant glossy-finished cards with fast turnaround times. These cards feature a high-shine finish that makes colors pop and creates a contemporary, polished look. Ideal for businesses that want to make a bold statement.',
-    price: 329,
-    category: 'quick'
-  },
-];
 
 export default Products;
