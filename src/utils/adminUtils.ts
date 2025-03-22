@@ -1,6 +1,6 @@
 
 import { auth, db, setupAdminUser } from '@/config/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 
 // Function to check if a user is an admin
@@ -22,15 +22,29 @@ export const checkIfUserIsAdmin = async (uid: string): Promise<boolean> => {
 // Function to create admin credentials and login
 export const createAndLoginAdmin = async (email: string, password: string): Promise<boolean> => {
   try {
-    // Sign in with provided credentials
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    let userCredential;
+    
+    try {
+      // Try to sign in first
+      userCredential = await signInWithEmailAndPassword(auth, email, password);
+    } catch (signInError: any) {
+      // If sign in fails with auth/user-not-found, create the user
+      if (signInError.code === 'auth/user-not-found' || signInError.code === 'auth/invalid-credential') {
+        // Create the admin user
+        userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        console.log('New admin user created');
+      } else {
+        // If it's another error, throw it
+        throw signInError;
+      }
+    }
     
     // Set up admin privileges
     const success = await setupAdminUser(userCredential.user.uid);
     
     return success;
   } catch (error) {
-    console.error('Error creating admin user:', error);
+    console.error('Error creating/signing in admin user:', error);
     return false;
   }
 };
