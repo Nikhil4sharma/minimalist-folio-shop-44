@@ -44,8 +44,9 @@ const Profile = () => {
       const profileData = await getUserProfile(currentUser.uid);
       
       // Check if there was an error
-      if (profileData && 'error' in profileData) {
-        setError(profileData.message || 'Error loading profile');
+      if (profileData && typeof profileData === 'object' && 'error' in profileData) {
+        const errorData = profileData as { error: boolean, message?: string };
+        setError(errorData.message || 'Error loading profile');
         setIsLoading(false);
         return;
       }
